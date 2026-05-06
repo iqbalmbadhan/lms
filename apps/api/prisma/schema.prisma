@@ -1,0 +1,305 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+enum PersonaRole {
+  EXECUTIVE
+  PRODUCT_OWNER
+  BUSINESS_ANALYST
+  CUSTOMER_SERVICE
+  HR
+  FINANCE
+  LEGAL_SOURCING
+  DEVELOPER
+  GOVERNANCE
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum IdeaStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  IN_PROGRESS
+  DEPLOYED
+}
+
+enum GovernanceStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AIProvider {
+  ANTHROPIC
+  OPENAI
+  GEMINI
+  OPENROUTER
+}
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  name          String
+  passwordHash  String?
+  avatar        String?
+  role          PersonaRole  @default(DEVELOPER)
+  aiProvider    AIProvider   @default(ANTHROPIC)
+  aiModel       String?
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  enrollments       Enrollment[]
+  ideas             Idea[]
+  governanceReviews GovernanceReview[]
+  savedPrompts      SavedPrompt[]
+  tutorSessions     TutorSession[]
+  accounts          Account[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  accessToken       String?
+  refreshToken      String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Solution {
+  id            String        @id @default(cuid())
+  title         String
+  description   String
+  businessValue String
+  personas      PersonaRole[]
+  category      String
+  tags          String[]
+  demoUrl       String?
+  documentUrl   String?
+  complexity    Int           @default(1)
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  embedding     Unsupported("vector(1536)")?
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model Course {
+  id            String        @id @default(cuid())
+  title         String
+  description   String
+  thumbnail     String?
+  personas      PersonaRole[]
+  status        CourseStatus  @default(DRAFT)
+  estimatedMins Int           @default(30)
+  passingScore  Int           @default(70)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  lessons       Lesson[]
+  enrollments   Enrollment[]
+  certificates  Certificate[]
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  courseId    String
+  title       String
+  content     String
+  videoUrl    String?
+  order       Int
+  durationMin Int      @default(5)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course      Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progress    LessonProgress[]
+
+  @@index([courseId, order])
+}
+
+model Enrollment {
+  id           String    @id @default(cuid())
+  userId       String
+  courseId     String
+  enrolledAt   DateTime  @default(now())
+  completedAt  DateTime?
+  score        Int?
+  progressPct  Int       @default(0)
+
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course       Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessonProgress LessonProgress[]
+
+  @@unique([userId, courseId])
+}
+
+model LessonProgress {
+  id           String     @id @default(cuid())
+  enrollmentId String
+  lessonId     String
+  completedAt  DateTime   @default(now())
+
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lesson       Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, lessonId])
+}
+
+model Certificate {
+  id         String   @id @default(cuid())
+  userId     String
+  courseId   String
+  issuedAt   DateTime @default(now())
+  fileUrl    String?
+
+  course     Course   @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+}
+
+model Prompt {
+  id          String        @id @default(cuid())
+  title       String
+  description String
+  content     String
+  personas    PersonaRole[]
+  tags        String[]
+  category    String
+  useCount    Int           @default(0)
+  isPublished Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  embedding   Unsupported("vector(1536)")?
+  savedBy     SavedPrompt[]
+
+  @@index([category])
+  @@index([useCount])
+}
+
+model SavedPrompt {
+  userId    String
+  promptId  String
+  savedAt   DateTime @default(now())
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt    Prompt  @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@id([userId, promptId])
+}
+
+model Idea {
+  id              String      @id @default(cuid())
+  title           String
+  description     String
+  businessCase    String
+  estimatedValue  String?
+  submittedById   String
+  status          IdeaStatus  @default(SUBMITTED)
+  personas        PersonaRole[]
+  priority        Int?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  submittedBy     User              @relation(fields: [submittedById], references: [id])
+  reviews         GovernanceReview[]
+
+  @@index([status])
+  @@index([submittedById])
+}
+
+model GovernanceReview {
+  id          String           @id @default(cuid())
+  ideaId      String
+  reviewerId  String
+  status      GovernanceStatus @default(PENDING)
+  riskLevel   RiskLevel        @default(MEDIUM)
+  notes       String?
+  reviewedAt  DateTime?
+  createdAt   DateTime         @default(now())
+
+  idea        Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  reviewer    User @relation(fields: [reviewerId], references: [id])
+
+  @@index([status])
+  @@index([ideaId])
+}
+
+model GovernancePolicy {
+  id          String    @id @default(cuid())
+  title       String
+  content     String
+  version     String
+  isActive    Boolean   @default(true)
+  publishedAt DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isActive])
+}
+
+model TutorSession {
+  id        String    @id @default(cuid())
+  userId    String
+  courseId  String?
+  context   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  TutorMessage[]
+
+  @@index([userId])
+}
+
+model TutorMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+
+  session   TutorSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model ROIMetric {
+  id          String      @id @default(cuid())
+  persona     PersonaRole
+  metricKey   String
+  metricValue Float
+  period      String
+  recordedAt  DateTime    @default(now())
+
+  @@index([persona, period])
+}
