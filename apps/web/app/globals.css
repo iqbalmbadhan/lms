@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+
+:root {
+  --color-brand-900: #1E1B4B;
+  --color-brand-700: #4338CA;
+  --color-accent: #7C3AED;
+  --color-surface: #F8F7FF;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Sora', sans-serif;
+}
+
+.skeleton {
+  @apply animate-pulse bg-gray-200 rounded;
+}
+
+.skeleton-text {
+  @apply skeleton h-4 w-full mb-2;
+}
+
+.skeleton-title {
+  @apply skeleton h-6 w-3/4 mb-3;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #c7d2fe;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #818cf8;
+}

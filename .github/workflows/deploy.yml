@@ -1,0 +1,31 @@
+name: Deploy to Hostinger VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          script: |
+            cd /var/www/ai-lms
+            git pull origin main
+            cp .env.production .env
+
+            npm install --workspace=apps/web
+            npm install --workspace=apps/api
+
+            cd apps/api && npx prisma migrate deploy && cd ../..
+
+            cd apps/web && npm run build && cd ../..
+
+            pm2 restart lms-web lms-api --update-env
+            pm2 save
