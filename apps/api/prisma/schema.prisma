@@ -57,6 +57,26 @@ enum AIProvider {
   OPENROUTER
 }
 
+enum SystemRole {
+  LEARNER
+  AUTHOR
+  SUPER_ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+  FAILED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
 model User {
   id            String       @id @default(cuid())
   email         String       @unique
@@ -67,6 +87,7 @@ model User {
   aiProvider    AIProvider   @default(ANTHROPIC)
   aiModel       String?
   isActive      Boolean      @default(true)
+  systemRole    SystemRole   @default(LEARNER)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -76,6 +97,11 @@ model User {
   savedPrompts      SavedPrompt[]
   tutorSessions     TutorSession[]
   accounts          Account[]
+  authorProfile     AuthorProfile?
+  authoredCourses   Course[]         @relation("AuthoredCourses")
+  orders            Order[]
+  earnings          AuthorEarning[]
+  payoutRequests    PayoutRequest[]
 
   @@index([email])
   @@index([role])
@@ -122,12 +148,19 @@ model Course {
   status        CourseStatus  @default(DRAFT)
   estimatedMins Int           @default(30)
   passingScore  Int           @default(70)
+  authorId        String?
+  price           Float            @default(0)
+  isFree          Boolean          @default(true)
+  revenueSharePct Int              @default(70)
+  isApproved      Boolean          @default(false)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   lessons       Lesson[]
   enrollments   Enrollment[]
   certificates  Certificate[]
+  author          User?            @relation("AuthoredCourses", fields: [authorId], references: [id])
+  orders          Order[]
 }
 
 model Lesson {
@@ -302,4 +335,80 @@ model ROIMetric {
   recordedAt  DateTime    @default(now())
 
   @@index([persona, period])
+}
+
+model AuthorProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  bio         String?
+  expertise   String[]
+  website     String?
+  paypalEmail String?
+  bankDetails String?
+  isApproved  Boolean   @default(false)
+  appliedAt   DateTime  @default(now())
+  approvedAt  DateTime?
+  approvedById String?
+  totalEarnings Float   @default(0)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isApproved])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  userId        String
+  courseId      String
+  amount        Float
+  currency      String      @default("USD")
+  status        OrderStatus @default(PENDING)
+  paymentMethod String
+  paymentId     String?
+  stripeSessionId String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  user          User        @relation(fields: [userId], references: [id])
+  course        Course      @relation(fields: [courseId], references: [id])
+  earning       AuthorEarning?
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([status])
+}
+
+model AuthorEarning {
+  id              String   @id @default(cuid())
+  authorId        String
+  orderId         String   @unique
+  courseId        String
+  grossAmount     Float
+  authorAmount    Float
+  platformAmount  Float
+  isPaidOut       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  author          User     @relation(fields: [authorId], references: [id])
+  order           Order    @relation(fields: [orderId], references: [id])
+
+  @@index([authorId])
+  @@index([isPaidOut])
+}
+
+model PayoutRequest {
+  id          String       @id @default(cuid())
+  authorId    String
+  amount      Float
+  method      String
+  accountDetails String?
+  status      PayoutStatus @default(PENDING)
+  notes       String?
+  adminNotes  String?
+  processedAt DateTime?
+  createdAt   DateTime     @default(now())
+
+  author      User         @relation(fields: [authorId], references: [id])
+
+  @@index([authorId])
+  @@index([status])
 }
