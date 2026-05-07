@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import { GovernanceStatus } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { requireModule, requireRole } from '../middleware/rbac.middleware'
@@ -11,7 +12,7 @@ router.use(requireModule('governance'))
 router.get('/reviews', async (req, res) => {
   const { status } = req.query
   const reviews = await prisma.governanceReview.findMany({
-    where: status ? { status: status as string } : {},
+    where: status ? { status: status as GovernanceStatus } : {},
     include: {
       idea: { select: { id: true, title: true, description: true, status: true } },
       reviewer: { select: { id: true, name: true } },
