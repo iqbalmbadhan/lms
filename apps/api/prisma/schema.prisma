@@ -412,3 +412,9 @@ model PayoutRequest {
   @@index([authorId])
   @@index([status])
 }
+
+model SystemConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

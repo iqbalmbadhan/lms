@@ -190,4 +190,36 @@ router.patch('/payouts/:id', async (req, res) => {
   res.json(payout)
 })
 
+// AI Provider settings
+router.get('/settings/ai', async (req, res) => {
+  const configs = await prisma.systemConfig.findMany({
+    where: { key: { in: ['ai_provider', 'ai_model'] } },
+  })
+  const map = Object.fromEntries(configs.map((c) => [c.key, c.value]))
+  res.json({
+    provider: map['ai_provider'] ?? process.env.DEFAULT_AI_PROVIDER ?? 'ANTHROPIC',
+    model: map['ai_model'] ?? '',
+  })
+})
+
+router.put('/settings/ai', async (req, res) => {
+  const { provider, model } = req.body
+  if (!provider) { res.status(400).json({ error: 'provider is required' }); return }
+
+  await prisma.$transaction([
+    prisma.systemConfig.upsert({
+      where: { key: 'ai_provider' },
+      create: { key: 'ai_provider', value: provider },
+      update: { value: provider },
+    }),
+    prisma.systemConfig.upsert({
+      where: { key: 'ai_model' },
+      create: { key: 'ai_model', value: model ?? '' },
+      update: { value: model ?? '' },
+    }),
+  ])
+
+  res.json({ provider, model })
+})
+
 export default router
