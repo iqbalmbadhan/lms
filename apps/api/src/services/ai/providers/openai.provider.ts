@@ -1,7 +1,13 @@
 import OpenAI from 'openai'
-import { AIProvider, StreamOptions, ModelOption } from '../provider.interface'
+import { AIProvider, ModelOption } from '../provider.interface'
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+let _client: OpenAI | null = null
+function getClient(): OpenAI {
+  if (!_client) {
+    _client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY ?? 'missing' })
+  }
+  return _client
+}
 
 export const openaiProvider: AIProvider = {
   name: 'OpenAI',
@@ -29,7 +35,7 @@ export const openaiProvider: AIProvider = {
 
   async stream({ systemPrompt, messages, model, maxTokens = 1024, onChunk, onDone, onError }) {
     try {
-      const stream = await client.chat.completions.create({
+      const stream = await getClient().chat.completions.create({
         model: model ?? this.defaultModel,
         max_tokens: maxTokens,
         stream: true,

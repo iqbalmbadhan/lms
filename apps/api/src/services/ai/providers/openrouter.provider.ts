@@ -1,14 +1,20 @@
 import OpenAI from 'openai'
-import { AIProvider, StreamOptions, ModelOption } from '../provider.interface'
+import { AIProvider, ModelOption } from '../provider.interface'
 
-const client = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: 'https://openrouter.ai/api/v1',
-  defaultHeaders: {
-    'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://yourdomain.com',
-    'X-Title': 'AI Business LMS',
-  },
-})
+let _client: OpenAI | null = null
+function getClient(): OpenAI {
+  if (!_client) {
+    _client = new OpenAI({
+      apiKey: process.env.OPENROUTER_API_KEY ?? 'missing',
+      baseURL: 'https://openrouter.ai/api/v1',
+      defaultHeaders: {
+        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://yourdomain.com',
+        'X-Title': 'AI Business LMS',
+      },
+    })
+  }
+  return _client
+}
 
 export const openrouterProvider: AIProvider = {
   name: 'OpenRouter',
@@ -48,7 +54,7 @@ export const openrouterProvider: AIProvider = {
 
   async stream({ systemPrompt, messages, model, maxTokens = 1024, onChunk, onDone, onError }) {
     try {
-      const stream = await client.chat.completions.create({
+      const stream = await getClient().chat.completions.create({
         model: model ?? this.defaultModel,
         max_tokens: maxTokens,
         stream: true,
