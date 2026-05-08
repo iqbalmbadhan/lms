@@ -2,16 +2,23 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { requireModule } from '../middleware/rbac.middleware'
-import { streamTutorResponse, getAllProviders } from '../services/ai'
+import { streamTutorResponse } from '../services/ai'
 import { PersonaRole } from '@prisma/client'
 
 const router = Router()
 router.use(authMiddleware)
 router.use(requireModule('tutor'))
 
-router.get('/providers', (req, res) => {
-  res.json(getAllProviders())
-})
+async function getActiveProvider(): Promise<{ providerKey: string; model: string | undefined }> {
+  const [providerRow, modelRow] = await Promise.all([
+    prisma.systemConfig.findUnique({ where: { key: 'ai_provider' } }),
+    prisma.systemConfig.findUnique({ where: { key: 'ai_model' } }),
+  ])
+  return {
+    providerKey: providerRow?.value ?? process.env.DEFAULT_AI_PROVIDER ?? 'ANTHROPIC',
+    model: modelRow?.value || undefined,
+  }
+}
 
 router.get('/sessions', async (req, res) => {
   const sessions = await prisma.tutorSession.findMany({
@@ -39,7 +46,7 @@ router.post('/sessions', async (req, res) => {
 
 router.post('/sessions/:sessionId/stream', async (req, res) => {
   const { sessionId } = req.params
-  const { message, providerKey, model } = req.body
+  const { message } = req.body
 
   const session = await prisma.tutorSession.findFirst({
     where: { id: sessionId, userId: req.user!.id },
@@ -60,9 +67,7 @@ router.post('/sessions/:sessionId/stream', async (req, res) => {
   }))
   history.push({ role: 'user', content: message })
 
-  const user = await prisma.user.findUnique({ where: { id: req.user!.id } })
-  const resolvedProvider = providerKey ?? user?.aiProvider ?? process.env.DEFAULT_AI_PROVIDER ?? 'ANTHROPIC'
-  const resolvedModel = model ?? user?.aiModel ?? undefined
+  const { providerKey, model } = await getActiveProvider()
 
   let assistantReply = ''
 
@@ -79,8 +84,8 @@ router.post('/sessions/:sessionId/stream', async (req, res) => {
   } as typeof res.write
 
   await streamTutorResponse({
-    providerKey: resolvedProvider,
-    model: resolvedModel,
+    providerKey,
+    model,
     role: req.user!.role as PersonaRole,
     messages: history,
     courseContext: session.context,
@@ -96,16 +101,6 @@ router.post('/sessions/:sessionId/stream', async (req, res) => {
       data: { updatedAt: new Date() },
     })
   }
-})
-
-router.patch('/preferences', async (req, res) => {
-  const { aiProvider, aiModel } = req.body
-  const updated = await prisma.user.update({
-    where: { id: req.user!.id },
-    data: { aiProvider, aiModel },
-    select: { aiProvider: true, aiModel: true },
-  })
-  res.json(updated)
 })
 
 export default router

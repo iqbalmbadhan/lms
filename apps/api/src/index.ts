@@ -12,6 +12,9 @@ import ideasRouter from './routes/ideas.routes'
 import governanceRouter from './routes/governance.routes'
 import tutorRouter from './routes/tutor.routes'
 import analyticsRouter from './routes/analytics.routes'
+import adminRouter from './routes/admin.routes'
+import authorRouter from './routes/author.routes'
+import ordersRouter from './routes/orders.routes'
 
 const app = express()
 const PORT = process.env.PORT ?? 4000
@@ -34,6 +37,9 @@ app.use('/ideas', ideasRouter)
 app.use('/governance', governanceRouter)
 app.use('/tutor', tutorRouter)
 app.use('/analytics', analyticsRouter)
+app.use('/admin', adminRouter)
+app.use('/author', authorRouter)
+app.use('/orders', ordersRouter)
 
 app.use(errorMiddleware)
 

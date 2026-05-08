@@ -7,6 +7,7 @@ export interface AuthUser {
   email: string
   name: string
   role: PersonaRole
+  systemRole: string
   aiProvider: string
   aiModel?: string | null
 }

@@ -7,14 +7,6 @@ import { apiClient } from '@/lib/api-client'
 interface Message {
   role: 'user' | 'assistant'
   content: string
-  provider?: string
-}
-
-interface ProviderOption {
-  key: string
-  name: string
-  defaultModel: string
-  models: { id: string; label: string; description: string }[]
 }
 
 export default function TutorPage() {
@@ -23,13 +15,9 @@ export default function TutorPage() {
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const [providers, setProviders] = useState<ProviderOption[]>([])
-  const [provider, setProvider] = useState('ANTHROPIC')
-  const [model, setModel] = useState('claude-sonnet-4-5')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    apiClient.get<ProviderOption[]>('/tutor/providers').then(setProviders)
     apiClient.post<{ id: string }>('/tutor/sessions', {}).then((s) => setSessionId(s.id))
   }, [])
 
@@ -37,20 +25,18 @@ export default function TutorPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const currentProvider = providers.find((p) => p.key === provider)
-
   async function sendMessage() {
     if (!input.trim() || isStreaming || !sessionId) return
     const userMessage = input.trim()
     setInput('')
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
     setIsStreaming(true)
-    setMessages((prev) => [...prev, { role: 'assistant', content: '', provider }])
+    setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
 
     const res = await fetch(`/api/tutor/sessions/${sessionId}/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: userMessage, providerKey: provider, model }),
+      body: JSON.stringify({ message: userMessage }),
       credentials: 'include',
     })
 
@@ -91,38 +77,6 @@ export default function TutorPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Provider bar */}
-      <div className="flex items-center gap-4 p-3 bg-white border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500 font-medium">Provider</label>
-          <select
-            value={provider}
-            onChange={(e) => {
-              const p = providers.find((x) => x.key === e.target.value)
-              setProvider(e.target.value)
-              setModel(p?.defaultModel ?? '')
-            }}
-            className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-            {providers.map((p) => (
-              <option key={p.key} value={p.key}>{p.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500 font-medium">Model</label>
-          <select
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-            {currentProvider?.models.map((m) => (
-              <option key={m.id} value={m.id}>{m.label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 && (
@@ -149,9 +103,6 @@ export default function TutorPage() {
               }`}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
-              {msg.role === 'assistant' && msg.provider && msg.content && (
-                <p className="text-xs text-gray-400 mt-1.5">via {msg.provider}</p>
-              )}
               {msg.role === 'assistant' && isStreaming && i === messages.length - 1 && (
                 <span className="inline-block w-0.5 h-4 bg-gray-400 animate-pulse ml-0.5 align-middle" />
               )}

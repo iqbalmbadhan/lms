@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import { IdeaStatus } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { requireModule } from '../middleware/rbac.middleware'
@@ -23,7 +24,7 @@ router.get('/', async (req, res) => {
   const { status } = req.query
   const ideas = await prisma.idea.findMany({
     where: {
-      ...(status ? { status: status as string } : {}),
+      ...(status ? { status: status as IdeaStatus } : {}),
     },
     include: {
       submittedBy: { select: { id: true, name: true, avatar: true, role: true } },

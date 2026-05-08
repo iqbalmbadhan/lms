@@ -39,6 +39,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id
         token.role = (user as Record<string, unknown>).role as string
+        token.systemRole = (user as Record<string, unknown>).systemRole as string
         token.aiProvider = (user as Record<string, unknown>).aiProvider as string
         token.accessToken = (user as Record<string, unknown>).accessToken as string
       }
@@ -47,6 +48,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       session.user.id = token.id as string
       session.user.role = token.role as string
+      session.user.systemRole = token.systemRole as string
       session.user.aiProvider = token.aiProvider as string
       session.user.accessToken = token.accessToken as string
       return session
